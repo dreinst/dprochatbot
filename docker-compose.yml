@@ -1,0 +1,36 @@
+# Dipasang di VPS dreinst (/root/dprochatbot). Nilai rahasia ada di .env di server, bukan di repo.
+# Database dashboard ini (SQLite) ada di ./data, terpisah dari database KUWERA yang hanya dibaca lewat akun dprochatbot_ro.
+# Dari data bot WA kantor hanya tiga folder yang dipasang: outbox (pesan blast), media (poster), blast-stop (catatan STOP).
+services:
+  dprochatbot:
+    build: .
+    container_name: dprochatbot
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DB_FILE: /data/dprochatbot.db
+      BOT_DATA: /bot-data
+      KUWERA_DB_CA_FILE: /certs/coolify-ca.crt
+    volumes:
+      - ./data:/data
+      - /root/kuwera-wa-bot/data/outbox:/bot-data/outbox
+      - /root/kuwera-wa-bot/data/media:/bot-data/media
+      - /root/kuwera-wa-bot/data/blast-stop:/bot-data/blast-stop
+      - /data/coolify/ssl/coolify-ca.crt:/certs/coolify-ca.crt:ro
+    mem_limit: 256m
+    networks:
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dprochatbot-http.entryPoints=http
+      - traefik.http.routers.dprochatbot-http.middlewares=redirect-to-https
+      - traefik.http.routers.dprochatbot-http.rule=Host(`dprochatbot.187.53.129.205.sslip.io`)
+      - traefik.http.routers.dprochatbot-https.entryPoints=https
+      - traefik.http.routers.dprochatbot-https.rule=Host(`dprochatbot.187.53.129.205.sslip.io`)
+      - traefik.http.routers.dprochatbot-https.tls=true
+      - traefik.http.routers.dprochatbot-https.tls.certresolver=letsencrypt
+      - traefik.http.services.dprochatbot.loadbalancer.server.port=3000
+
+networks:
+  coolify:
+    external: true
