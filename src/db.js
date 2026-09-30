@@ -22,15 +22,15 @@ CREATE TABLE IF NOT EXISTS events (
 );
 CREATE TABLE IF NOT EXISTS contacts (
   id INTEGER PRIMARY KEY, kunci TEXT UNIQUE NOT NULL, nama TEXT NOT NULL, hp TEXT, email TEXT, nik_samar TEXT,
-  tgl_lahir TEXT, gender TEXT, gol_darah TEXT, alamat TEXT, provinsi TEXT, kota TEXT, kode_pos TEXT, jersey TEXT,
-  darurat_nama TEXT, darurat_hp TEXT, komunitas TEXT,
+  tgl_lahir TEXT, gender TEXT, gol_darah TEXT, alamat TEXT, provinsi TEXT, kota TEXT, komunitas TEXT,
+  umat TEXT, asal TEXT, -- dari Pet Blessing: umat paroki (ya/bukan) dan asal paroki/wilayah
   berhenti_at TEXT, -- membalas STOP: tidak menerima blast lagi
   created_at TEXT NOT NULL DEFAULT (datetime('now')), updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS contacts_hp ON contacts(hp);
 CREATE TABLE IF NOT EXISTS ikut (
   id INTEGER PRIMARY KEY, contact_id INTEGER NOT NULL REFERENCES contacts(id), event_id INTEGER NOT NULL REFERENCES events(id),
-  ref TEXT NOT NULL, status TEXT NOT NULL, kode_tiket TEXT, daftar_at TEXT, UNIQUE(event_id, ref)
+  ref TEXT NOT NULL, status TEXT NOT NULL, daftar_at TEXT, UNIQUE(event_id, ref)
 );
 CREATE TABLE IF NOT EXISTS blasts (
   id INTEGER PRIMARY KEY, judul TEXT NOT NULL, pesan TEXT NOT NULL, poster TEXT, segmen TEXT NOT NULL,
@@ -41,6 +41,13 @@ CREATE TABLE IF NOT EXISTS blast_penerima (
   status TEXT NOT NULL DEFAULT 'antre', waktu TEXT, UNIQUE(blast_id, hp)
 );
 `);
+
+// Database hanya menyimpan kolom yang dipakai: kolom lama (kode pos, jersey, kontak darurat, kode tiket) dibuang,
+// kolom Pet Blessing (umat, asal) ditambahkan.
+const kolom = (t) => db.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+for (const c of ["kode_pos", "jersey", "darurat_nama", "darurat_hp"]) if (kolom("contacts").includes(c)) db.exec(`ALTER TABLE contacts DROP COLUMN ${c}`);
+if (kolom("ikut").includes("kode_tiket")) db.exec("ALTER TABLE ikut DROP COLUMN kode_tiket");
+for (const c of ["umat", "asal"]) if (!kolom("contacts").includes(c)) db.exec(`ALTER TABLE contacts ADD COLUMN ${c} TEXT`);
 
 export const setting = (key, fallback = null) => db.prepare("SELECT value FROM settings WHERE key = ?").get(key)?.value ?? fallback;
 export const setSetting = (key, value) => db.prepare("INSERT INTO settings(key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(key, String(value));

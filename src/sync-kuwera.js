@@ -28,23 +28,21 @@ export async function syncKuwera() {
   if (!p) return { dilewati: "KUWERA_DATABASE_URL belum diatur" };
   const { rows } = await p.query(`
     SELECT pa.id, pa."fullName", pa."idNumber", pa."birthDate", pa.gender, pa."bloodType", pa.phone, pa.email, pa.address,
-           pa.province, pa.city, pa."postalCode", pa."jerseySize", pa."emergencyName", pa."emergencyPhone", pa.community,
-           o.status, o."createdAt", o.source, t.code AS tiket
-      FROM "Participant" pa JOIN "Order" o ON o.id = pa."orderId" LEFT JOIN "Ticket" t ON t."participantId" = pa.id
+           pa.province, pa.city, pa.community,
+           o.status, o."createdAt", o.source
+      FROM "Participant" pa JOIN "Order" o ON o.id = pa."orderId"
      WHERE NOT o."isTest"`);
   db.prepare("INSERT INTO events(kode, nama, kategori, tanggal, sumber) VALUES (?, ?, ?, ?, ?) ON CONFLICT(kode) DO NOTHING")
     .run(EVENT.kode, EVENT.nama, EVENT.kategori, EVENT.tanggal, EVENT.sumber);
   const eventId = db.prepare("SELECT id FROM events WHERE kode = ?").get(EVENT.kode).id;
-  const upsertContact = db.prepare(`INSERT INTO contacts(kunci, nama, hp, email, nik_samar, tgl_lahir, gender, gol_darah, alamat, provinsi, kota,
-      kode_pos, jersey, darurat_nama, darurat_hp, komunitas)
-    VALUES (@kunci, @nama, @hp, @email, @nik_samar, @tgl_lahir, @gender, @gol_darah, @alamat, @provinsi, @kota, @kode_pos, @jersey, @darurat_nama, @darurat_hp, @komunitas)
+  const upsertContact = db.prepare(`INSERT INTO contacts(kunci, nama, hp, email, nik_samar, tgl_lahir, gender, gol_darah, alamat, provinsi, kota, komunitas)
+    VALUES (@kunci, @nama, @hp, @email, @nik_samar, @tgl_lahir, @gender, @gol_darah, @alamat, @provinsi, @kota, @komunitas)
     ON CONFLICT(kunci) DO UPDATE SET nama = excluded.nama, hp = excluded.hp, email = excluded.email, nik_samar = excluded.nik_samar,
       tgl_lahir = excluded.tgl_lahir, gender = excluded.gender, gol_darah = excluded.gol_darah, alamat = excluded.alamat, provinsi = excluded.provinsi,
-      kota = excluded.kota, kode_pos = excluded.kode_pos, jersey = excluded.jersey, darurat_nama = excluded.darurat_nama, darurat_hp = excluded.darurat_hp,
-      komunitas = excluded.komunitas, updated_at = datetime('now')`);
+      kota = excluded.kota, komunitas = excluded.komunitas, updated_at = datetime('now')`);
   const idOf = db.prepare("SELECT id FROM contacts WHERE kunci = ?");
-  const upsertIkut = db.prepare(`INSERT INTO ikut(contact_id, event_id, ref, status, kode_tiket, daftar_at) VALUES (?, ?, ?, ?, ?, ?)
-    ON CONFLICT(event_id, ref) DO UPDATE SET contact_id = excluded.contact_id, status = excluded.status, kode_tiket = excluded.kode_tiket`);
+  const upsertIkut = db.prepare(`INSERT INTO ikut(contact_id, event_id, ref, status, daftar_at) VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(event_id, ref) DO UPDATE SET contact_id = excluded.contact_id, status = excluded.status`);
   db.exec("BEGIN");
   try {
     for (const r of rows) {
@@ -54,10 +52,9 @@ export async function syncKuwera() {
         kunci, nama: r.fullName, hp, email: r.email || null, nik_samar: samar(r.idNumber),
         tgl_lahir: r.source === "kudam" ? null : r.birthDate?.toISOString().slice(0, 10) ?? null,
         gender: r.source === "kudam" ? null : r.gender, gol_darah: r.bloodType, alamat: r.address, provinsi: r.province, kota: r.city,
-        kode_pos: r.postalCode, jersey: r.jerseySize, darurat_nama: r.emergencyName === "-" ? null : r.emergencyName,
-        darurat_hp: r.emergencyPhone === "-" ? null : hp62(r.emergencyPhone), komunitas: r.community,
+        komunitas: r.community,
       });
-      upsertIkut.run(idOf.get(kunci).id, eventId, `kuwera:${r.id}`, STATUS[r.status] || "menunggu", r.tiket, r.createdAt?.toISOString() ?? null);
+      upsertIkut.run(idOf.get(kunci).id, eventId, `kuwera:${r.id}`, STATUS[r.status] || "menunggu", r.createdAt?.toISOString() ?? null);
     }
     db.exec("COMMIT");
   } catch (e) { db.exec("ROLLBACK"); throw e; }

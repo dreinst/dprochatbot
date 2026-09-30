@@ -1,5 +1,5 @@
 # Dipasang di VPS dreinst (/root/dprochatbot). Nilai rahasia ada di .env di server, bukan di repo.
-# Database dashboard ini (SQLite) ada di ./data, terpisah dari database KUWERA yang hanya dibaca lewat akun dprochatbot_ro.
+# Database dashboard ini (SQLite) ada di ./data, terpisah dari database KUWERA dan Pet Blessing yang hanya dibaca lewat akun dprochatbot_ro.
 # Dari data bot WA kantor hanya tiga folder yang dipasang: outbox (pesan blast), media (poster), blast-stop (catatan STOP).
 services:
   dprochatbot:
@@ -20,8 +20,10 @@ services:
     mem_limit: 256m
     networks:
       - coolify
+      - petblessing
     labels:
       - traefik.enable=true
+      - traefik.docker.network=coolify
       - traefik.http.routers.dprochatbot-http.entryPoints=http
       - traefik.http.routers.dprochatbot-http.middlewares=redirect-to-https
       - traefik.http.routers.dprochatbot-http.rule=Host(`dprochatbot.187.53.129.205.sslip.io`)
@@ -34,3 +36,7 @@ services:
 networks:
   coolify:
     external: true
+  # jaringan internal database Pet Blessing (petblessing-db), dibaca lewat akun dprochatbot_ro
+  petblessing:
+    external: true
+    name: petblessing-db_internal
