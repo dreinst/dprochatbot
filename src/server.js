@@ -4,7 +4,7 @@ import { currentAdmin, hashPassword, login, loginAllowed, logoutAll, logoutCooki
 import { buatBlast, hentikanBlast, penerima, tickBlast, PENUTUP } from "./blast.js";
 import { syncBerhenti, syncKuwera } from "./sync-kuwera.js";
 import { syncPetBlessing } from "./sync-petblessing.js";
-import { tickKontak } from "./kontak.js";
+import { vcf } from "./kontak.js";
 
 // Dashboard database pelanggan event D'Production + blast WhatsApp. Satu berkas server tanpa framework.
 const PORT = Number(process.env.PORT || 3000);
@@ -137,7 +137,8 @@ function dashboard(admin, q) {
   const sel = (name, html) => `<select class="isian" name="${name}" onchange="this.form.submit()">${html}</select>`;
   return page("Database", admin, `<div class="kepala-halaman"><div><h1 class="judul-halaman">Database pelanggan event</h1>
     <p class="subjudul-halaman">Peserta semua event D'Production, dikelompokkan per kategori untuk blast WhatsApp. Diperbarui otomatis tiap 10 menit.</p></div>
-    <form method="post" action="/sync"><button class="tombol tombol-garis"><span class="ms">sync</span>Sinkron sekarang</button></form></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="tombol tombol-garis" href="/kontak.vcf"><span class="ms">contacts</span>Unduh kontak (.vcf)</a>
+    <form method="post" action="/sync"><button class="tombol tombol-garis"><span class="ms">sync</span>Sinkron sekarang</button></form></div></div>
   <div class="statistik">
     <div class="kartu kartu-statistik"><span class="teks-label" style="padding:0">Semua kontak</span><div class="angka">${semua.n}</div><div class="redup">${semua.nomor} nomor WhatsApp</div></div>
     ${perKategori.map((k) => `<div class="kartu kartu-statistik"><span class="teks-label" style="padding:0">Kategori ${esc(k.kategori)}</span><div class="angka">${k.n}</div><div class="redup">${k.ev} event</div></div>`).join("")}
@@ -262,6 +263,11 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="database-pelanggan-${new Date().toISOString().slice(0, 10)}.csv"` });
       return res.end(csv(q));
     }
+    if (url.pathname === "/kontak.vcf") { // buka di HP kantor, semua kontak tersimpan sekaligus
+      catat(admin.username, "unduh_kontak");
+      res.writeHead(200, { "Content-Type": "text/vcard; charset=utf-8", "Content-Disposition": `attachment; filename="kontak-dpro-${new Date().toISOString().slice(0, 10)}.vcf"` });
+      return res.end(vcf());
+    }
     if (url.pathname === "/sync" && req.method === "POST") { await Promise.all([syncKuwera(), syncPetBlessing()]); syncBerhenti(); catat(admin.username, "sinkron_manual"); return redirect(res, "/"); }
     if (url.pathname === "/blast" && req.method === "GET") return send(res, 200, blastPage(admin, q.msg));
     if (url.pathname === "/api/hitung" && req.method === "POST") {
@@ -302,4 +308,3 @@ sinkronEvent();
 setInterval(sinkronEvent, 10 * 60_000);
 setInterval(aman("sinkron STOP", syncBerhenti), 60_000);
 setInterval(aman("blast", tickBlast), 5_000);
-setInterval(aman("simpan kontak", tickKontak), 120_000);

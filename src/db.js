@@ -32,8 +32,6 @@ CREATE TABLE IF NOT EXISTS ikut (
   id INTEGER PRIMARY KEY, contact_id INTEGER NOT NULL REFERENCES contacts(id), event_id INTEGER NOT NULL REFERENCES events(id),
   ref TEXT NOT NULL, status TEXT NOT NULL, daftar_at TEXT, UNIQUE(event_id, ref)
 );
--- Kontak yang sudah diantrekan untuk disimpan di WhatsApp nomor kantor, beserta nama terakhir yang dipakai.
-CREATE TABLE IF NOT EXISTS kontak_wa (hp TEXT PRIMARY KEY, nama TEXT NOT NULL, waktu TEXT NOT NULL DEFAULT (datetime('now')));
 CREATE TABLE IF NOT EXISTS blasts (
   id INTEGER PRIMARY KEY, judul TEXT NOT NULL, pesan TEXT NOT NULL, poster TEXT, segmen TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'berjalan', dibuat_oleh TEXT, created_at TEXT NOT NULL DEFAULT (datetime('now')), selesai_at TEXT
