@@ -4,6 +4,7 @@ import { currentAdmin, hashPassword, login, loginAllowed, logoutAll, logoutCooki
 import { buatBlast, hentikanBlast, penerima, tickBlast, PENUTUP } from "./blast.js";
 import { syncBerhenti, syncKuwera } from "./sync-kuwera.js";
 import { syncPetBlessing } from "./sync-petblessing.js";
+import { tickKontak } from "./kontak.js";
 
 // Dashboard database pelanggan event D'Production + blast WhatsApp. Satu berkas server tanpa framework.
 const PORT = Number(process.env.PORT || 3000);
@@ -301,3 +302,4 @@ sinkronEvent();
 setInterval(sinkronEvent, 10 * 60_000);
 setInterval(aman("sinkron STOP", syncBerhenti), 60_000);
 setInterval(aman("blast", tickBlast), 5_000);
+setInterval(aman("simpan kontak", tickKontak), 120_000);
