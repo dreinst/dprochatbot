@@ -1,6 +1,6 @@
 import pg from "pg";
 import { db, setSetting } from "./db.js";
-import { hp62 } from "./sync-kuwera.js";
+import { hp62, hapusYangHilang } from "./sync-kuwera.js";
 
 // Sinkron pendaftar Pet Blessing 2026 dan Pawrade 2026 (database petblessing-db, akun baca dprochatbot_ro yang hanya
 // melihat kolom nama, HP, umat, asal). Data uji tidak ikut. Kontak dikenali dari nomor HP + nama, jadi orang yang
@@ -38,6 +38,7 @@ export async function syncPetBlessing() {
         upsertContact.run(kunci, nama, hp, r.is_parishioner, r.parish_origin?.trim() || null);
         upsertIkut.run(idOf.get(kunci).id, eventId, `${e.kode}:${r.id}`, r.submitted_at?.toISOString() ?? null, r.queue_number == null ? null : String(r.queue_number).padStart(3, "0"));
       }
+      if (rows.length) hapusYangHilang(eventId, rows.map((r) => `${e.kode}:${r.id}`));
     }
     db.exec("COMMIT");
   } catch (err) { db.exec("ROLLBACK"); throw err; }

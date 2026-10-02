@@ -23,6 +23,13 @@ function kuwera() {
   return pool;
 }
 
+// Pendaftaran yang sudah dihapus atau digabung di database asal ikut dihapus di sini, begitu juga kontak yang tidak
+// punya pendaftaran lagi, supaya isi database ini selalu sama dengan sumbernya. Dipanggil di dalam transaksi sinkron.
+export function hapusYangHilang(eventId, refs) {
+  db.prepare("DELETE FROM ikut WHERE event_id = ? AND ref NOT IN (SELECT value FROM json_each(?))").run(eventId, JSON.stringify(refs));
+  db.prepare("DELETE FROM contacts WHERE id NOT IN (SELECT contact_id FROM ikut)").run();
+}
+
 export async function syncKuwera() {
   const p = kuwera();
   if (!p) return { dilewati: "KUWERA_DATABASE_URL belum diatur" };
@@ -56,6 +63,7 @@ export async function syncKuwera() {
       });
       upsertIkut.run(idOf.get(kunci).id, eventId, `kuwera:${r.id}`, STATUS[r.status] || "menunggu", r.createdAt?.toISOString() ?? null, r.orderId.split("-").pop());
     }
+    if (rows.length) hapusYangHilang(eventId, rows.map((r) => `kuwera:${r.id}`));
     db.exec("COMMIT");
   } catch (e) { db.exec("ROLLBACK"); throw e; }
   setSetting("sync_kuwera_at", new Date().toISOString());

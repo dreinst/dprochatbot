@@ -263,7 +263,8 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(200, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="database-pelanggan-${new Date().toISOString().slice(0, 10)}.csv"` });
       return res.end(csv(q));
     }
-    if (url.pathname === "/kontak.vcf") { // buka di HP kantor, semua kontak tersimpan sekaligus
+    if (url.pathname === "/kontak.vcf") { // buka di HP kantor, semua kontak tersimpan sekaligus; sinkron dulu supaya terbaru
+      await Promise.all([syncKuwera(), syncPetBlessing()]); syncBerhenti();
       catat(admin.username, "unduh_kontak");
       res.writeHead(200, { "Content-Type": "text/vcard; charset=utf-8", "Content-Disposition": `attachment; filename="kontak-dpro-${new Date().toISOString().slice(0, 10)}.vcf"` });
       return res.end(vcf());
