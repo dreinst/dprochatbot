@@ -4,6 +4,7 @@ import { currentAdmin, hashPassword, login, loginAllowed, logoutAll, logoutCooki
 import { buatBlast, hentikanBlast, penerima, tickBlast, PENUTUP } from "./blast.js";
 import { syncBerhenti, syncKuwera } from "./sync-kuwera.js";
 import { syncPetBlessing } from "./sync-petblessing.js";
+import { syncDrivetech } from "./sync-drivetech.js";
 import { vcf } from "./kontak.js";
 
 // Dashboard database pelanggan event D'Production + blast WhatsApp. Satu berkas server tanpa framework.
@@ -16,7 +17,7 @@ function page(title, admin, body, aktif = "/") {
   if (!admin) return `<!doctype html><html lang="id"><head>${HEAD(title)}</head><body class="polos"><div class="aurora"></div>${body}</body></html>`;
   const menu = [["/", "Database"], ["/blast", "Blast WhatsApp"], ...(admin.role === "superadmin" ? [["/akun", "Akun"]] : [])]
     .map(([href, label]) => `<a href="${href}" class="menu ${href === aktif ? "menu-aktif" : ""}"><span class="ms">${IKON[href]}</span>${label}</a>`).join("");
-  const sinkron = [["KUWERA", setting("sync_kuwera_at")], ["Pet Blessing", setting("sync_petblessing_at")]]
+  const sinkron = [["KUWERA", setting("sync_kuwera_at")], ["Pet Blessing", setting("sync_petblessing_at")], ["DriveTech", setting("sync_drivetech_at")]]
     .map(([n, t]) => `<div class="sinkron"><span class="titik ${t ? "hijau" : ""}"></span>${n}<span class="mono">${t ? wib(t) : "belum"}</span></div>`).join("");
   return `<!doctype html><html lang="id"><head>${HEAD(title)}</head><body><div class="aurora"></div>
 <aside id="samping" class="kaca samping"><div class="merek"><span class="ubin-ikon">D</span><div><b>D'Pro Chatbot</b><small>Database pelanggan event</small></div></div>
@@ -264,12 +265,12 @@ const server = http.createServer(async (req, res) => {
       return res.end(csv(q));
     }
     if (url.pathname === "/kontak.vcf") { // buka di HP kantor, semua kontak tersimpan sekaligus; sinkron dulu supaya terbaru
-      await Promise.all([syncKuwera(), syncPetBlessing()]); syncBerhenti();
+      await Promise.all([syncKuwera(), syncPetBlessing(), syncDrivetech()]); syncBerhenti();
       catat(admin.username, "unduh_kontak");
       res.writeHead(200, { "Content-Type": "text/vcard; charset=utf-8", "Content-Disposition": `attachment; filename="kontak-dpro-${new Date().toISOString().slice(0, 10)}.vcf"` });
       return res.end(vcf());
     }
-    if (url.pathname === "/sync" && req.method === "POST") { await Promise.all([syncKuwera(), syncPetBlessing()]); syncBerhenti(); catat(admin.username, "sinkron_manual"); return redirect(res, "/"); }
+    if (url.pathname === "/sync" && req.method === "POST") { await Promise.all([syncKuwera(), syncPetBlessing(), syncDrivetech()]); syncBerhenti(); catat(admin.username, "sinkron_manual"); return redirect(res, "/"); }
     if (url.pathname === "/blast" && req.method === "GET") return send(res, 200, blastPage(admin, q.msg));
     if (url.pathname === "/api/hitung" && req.method === "POST") {
       const s = JSON.parse(await readBody(req, 10_000) || "{}");
@@ -302,9 +303,9 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => console.log(`dprochatbot di port ${PORT}`));
-// Pekerjaan latar: sinkron KUWERA dan Pet Blessing tiap 10 menit, catatan STOP tiap menit, blast tiap 5 detik (jeda antarpesan diatur di blast.js).
+// Pekerjaan latar: sinkron KUWERA, Pet Blessing, dan DriveTech tiap 10 menit, catatan STOP tiap menit, blast tiap 5 detik (jeda antarpesan diatur di blast.js).
 const aman = (nama, fn) => async () => { try { await fn(); } catch (e) { console.error(`${nama} gagal:`, e.message); } };
-const sinkronEvent = async () => { await aman("sinkron KUWERA", syncKuwera)(); await aman("sinkron Pet Blessing", syncPetBlessing)(); syncBerhenti(); };
+const sinkronEvent = async () => { await aman("sinkron KUWERA", syncKuwera)(); await aman("sinkron Pet Blessing", syncPetBlessing)(); await aman("sinkron DriveTech", syncDrivetech)(); syncBerhenti(); };
 sinkronEvent();
 setInterval(sinkronEvent, 10 * 60_000);
 setInterval(aman("sinkron STOP", syncBerhenti), 60_000);

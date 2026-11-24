@@ -3,7 +3,7 @@ import { db } from "./db.js";
 // File kontak (.vcf) semua pelanggan dengan nama "EVENT Nama" (misalnya "PB Hanin Inaland"), diunduh dari
 // dashboard lalu dibuka di HP kantor supaya semua kontak tersimpan sekaligus. Tiap nomor HP memakai pendaftaran
 // terbarunya. Kontak yang sudah ada di HP dengan nomor sama biasanya digabung atau ditawarkan untuk diperbarui.
-const LABEL = { "kuwera-2026": "KUWERA", "petblessing-2026": "PB", "pawrade-2026": "PAWRADE" };
+const LABEL = { "kuwera-2026": "KUWERA", "petblessing-2026": "PB", "pawrade-2026": "PAWRADE", "drivetech-2026": "DT" };
 
 const terbaru = db.prepare(`
   WITH t AS (

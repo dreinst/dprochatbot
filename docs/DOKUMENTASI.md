@@ -46,7 +46,8 @@ dprochatbot/
 │   ├── blast.js             Segmen penerima, antrean, tulis outbox bot
 │   ├── kontak.js            Pembuatan berkas .vcf
 │   ├── sync-kuwera.js       Sinkron KUWERA, sinkron STOP, hapus data hilang
-│   └── sync-petblessing.js  Sinkron Pet Blessing dan Pawrade
+│   ├── sync-petblessing.js  Sinkron Pet Blessing dan Pawrade
+│   └── sync-drivetech.js    Sinkron kontak DriveTech
 ├── tools/admin.js           Buat akun admin atau ganti sandi lewat terminal
 ├── sql/petblessing-ro.sql   Akun baca dprochatbot_ro di Pet Blessing
 ├── docs/DOKUMENTASI.md      Dokumen ini
@@ -106,6 +107,9 @@ NIK tidak disalin utuh. Yang disimpan adalah versi tersamar seperti `3573*******
 | KUWERA dengan NIK 16 digit | `nik:<sha256>` |
 | KUWERA tanpa NIK valid | `hp:<nomor>:<nama huruf kecil>` |
 | Pet Blessing dan Pawrade | `hp:<nomor>:<nama huruf kecil>` |
+| DriveTech | `hp:<nomor>:<nama huruf kecil>` |
+
+Kontak DriveTech diambil dari tenant dan Jalan Sehat di database `drivetech` (server Postgres yang sama dengan KUWERA, akun `dprochatbot_ro`, lihat `sql/drivetech-ro.sql`). Nomor yang hanya pernah chat soal DriveTech ke WA kantor, dan nomor orang dalam kantor yang dilewati, ada di `/data/drivetech-kontak.json` dengan bentuk `{"kecuali": [...], "tambahan": [{"hp", "nama"}]}`. Berkas ini tidak masuk repo karena berisi nomor pribadi.
 
 Pemetaan status KUWERA:
 
@@ -153,7 +157,7 @@ Dashboard membaca berkas itu tiap menit, dan aksi terakhir per nomor yang berlak
 
 ### Unduh kontak
 
-`/kontak.vcf` menjalankan sinkron dulu, lalu membuat satu kartu per nomor HP berdasarkan pendaftaran terbaru. Nama kontak memakai label event di depan, misalnya `PB Hanin Inaland`. Label diatur di `src/kontak.js`: `KUWERA`, `PB`, dan `PAWRADE`.
+`/kontak.vcf` menjalankan sinkron dulu, lalu membuat satu kartu per nomor HP berdasarkan pendaftaran terbaru. Nama kontak memakai label event di depan, misalnya `PB Hanin Inaland`. Label diatur di `src/kontak.js`: `KUWERA`, `PB`, `PAWRADE`, dan `DT` (DriveTech).
 
 ## Halaman dan endpoint
 
