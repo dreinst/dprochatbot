@@ -32,6 +32,8 @@ services:
       - traefik.http.routers.dprochatbot-https.tls=true
       - traefik.http.routers.dprochatbot-https.tls.certresolver=letsencrypt
       - traefik.http.services.dprochatbot.loadbalancer.server.port=3000
+      # Webhook cermin WhatsApp (CERMIN_PORT, bawaan 3020) sengaja tanpa label Traefik dan tanpa port publik:
+      # hanya terjangkau dari jaringan docker, tempat waha-kantor memanggil http://dprochatbot:3020/webhook.
 
 networks:
   coolify:

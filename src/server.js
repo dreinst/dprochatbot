@@ -5,16 +5,17 @@ import { buatBlast, hentikanBlast, penerima, tickBlast, PENUTUP } from "./blast.
 import { syncBerhenti, syncKuwera } from "./sync-kuwera.js";
 import { syncPetBlessing } from "./sync-petblessing.js";
 import { vcf } from "./kontak.js";
+import { nyalakanCermin, rutCermin } from "./cermin-halaman.js";
 
 // Dashboard database pelanggan event D'Production + blast WhatsApp. Satu berkas server tanpa framework.
 const PORT = Number(process.env.PORT || 3000);
 const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const wib = (iso) => (iso ? new Date(iso.endsWith("Z") ? iso : iso.replace(" ", "T") + "Z").toLocaleString("id-ID", { timeZone: "Asia/Jakarta", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "-");
 
-const IKON = { "/": "database", "/blast": "campaign", "/akun": "manage_accounts" };
+const IKON = { "/": "database", "/blast": "campaign", "/cermin": "forum", "/akun": "manage_accounts" };
 function page(title, admin, body, aktif = "/") {
   if (!admin) return `<!doctype html><html lang="id"><head>${HEAD(title)}</head><body class="polos"><div class="aurora"></div>${body}</body></html>`;
-  const menu = [["/", "Database"], ["/blast", "Blast WhatsApp"], ...(admin.role === "superadmin" ? [["/akun", "Akun"]] : [])]
+  const menu = [["/", "Database"], ["/blast", "Blast WhatsApp"], ...(admin.role === "superadmin" ? [["/cermin", "Cermin WA"], ["/akun", "Akun"]] : [])]
     .map(([href, label]) => `<a href="${href}" class="menu ${href === aktif ? "menu-aktif" : ""}"><span class="ms">${IKON[href]}</span>${label}</a>`).join("");
   const sinkron = [["KUWERA", setting("sync_kuwera_at")], ["Pet Blessing", setting("sync_petblessing_at")]]
     .map(([n, t]) => `<div class="sinkron"><span class="titik ${t ? "hijau" : ""}"></span>${n}<span class="mono">${t ? wib(t) : "belum"}</span></div>`).join("");
@@ -283,6 +284,7 @@ const server = http.createServer(async (req, res) => {
     }
     const m = url.pathname.match(/^\/blast\/(\d+)\/hentikan$/);
     if (m && req.method === "POST") { hentikanBlast(Number(m[1]), admin.username); return redirect(res, "/blast?msg=" + encodeURIComponent(`Blast #${m[1]} dihentikan.`)); }
+    if (admin.role === "superadmin" && req.method === "GET" && (url.pathname === "/cermin" || url.pathname.startsWith("/cermin/"))) return rutCermin({ res, url, q, admin, page, esc, send, catat });
     if (url.pathname === "/akun" && admin.role === "superadmin") {
       if (req.method === "POST") {
         const f = form(await readBody(req, 10_000));
@@ -309,3 +311,4 @@ sinkronEvent();
 setInterval(sinkronEvent, 10 * 60_000);
 setInterval(aman("sinkron STOP", syncBerhenti), 60_000);
 setInterval(aman("blast", tickBlast), 5_000);
+nyalakanCermin(); // cermin chat WhatsApp kantor: webhook, retensi, penarik celah

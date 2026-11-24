@@ -228,6 +228,73 @@ Container dibatasi memori 256 MB, tersambung ke jaringan `coolify` dan `petbless
 
 Untuk menambah event, buat modul sinkron seperti `src/sync-petblessing.js`, panggil dari `src/server.js` di jadwal latar, `/sync`, dan `/kontak.vcf`, tambahkan label di `src/kontak.js`, lalu tambahkan waktu sinkronnya di sidebar.
 
+## Cermin chat WhatsApp kantor
+
+Salinan hanya baca semua chat di nomor kantor (pribadi dan grup), supaya percakapan yang tidak ditangani bot ikut terpantau. Hanya superadmin yang melihatnya, lewat menu "Cermin WA". Admin biasa tidak melihat menunya dan mendapat 404. Modul ini tidak pernah mengirim pesan dan tidak mengubah perilaku bot.
+
+Berkas: `src/cermin.js` (database, penyimpanan, listener webhook, retensi), `src/cermin-tarik.js` (penarik riwayat), `src/cermin-halaman.js` (halaman), `src/cermin-mulai.js` (penyalaan dari `server.js`), `tools/tarik-cermin.js`, `test/cermin.test.js`.
+
+### Sumber data
+
+- Webhook WAHA sesi `kantor` ke listener kedua di container ini, port 3020, jalur `POST /webhook`, untuk event `message.any`, `message.revoked`, dan `message.edited`. Port 3020 tidak dibuka ke publik dan Traefik tetap hanya ke port 3000, jadi hanya jaringan docker (tempat `waha-kantor` berada) yang bisa menjangkaunya.
+- Setiap permintaan wajib membawa `X-Webhook-Hmac` (HMAC SHA-512 hex atas badan mentah, kunci `CERMIN_HMAC`). Tanpa kunci di env, listener tidak dinyalakan. Gagal cocok dijawab 401, badan lebih dari 1 MB dijawab 413, sesi selain `CERMIN_SESI` diabaikan.
+- Penarik riwayat memanggil API WAHA kantor hanya dengan GET (pembungkusnya menolak metode lain dan jalur `/send`). Mode celah jalan saat start lalu tiap 30 menit selama `WAHA_KANTOR_KEY` ada: dari `chats/overview`, chat yang pesan terakhirnya lebih baru dari yang tersimpan ditarik sejak waktu tersimpan dikurangi 10 menit.
+- Penanda pengirim memakai kolom `source` dari WAHA: pesan masuk `pelanggan`, keluar dengan `source` `api` jadi `bot`, keluar dengan `source` `app` atau kosong jadi `admin`.
+
+### Database
+
+Berkas terpisah `cermin.db` (env `CERMIN_DB`, bawaan `/data/cermin.db`), tidak dicampur dengan `dprochatbot.db`.
+
+| Tabel | Isi |
+|---|---|
+| `cermin_chat` | `jid`, nama, tanda grup, waktu pesan terakhir, jumlah pesan |
+| `cermin_pesan` | id polos WAHA dan `jid` (unik bersama), waktu, pengirim, peserta grup, jenis, teks atau keterangan, nama berkas, id yang dibalas, `diedit_at`, `dihapus_at`, asal (`webhook` atau `tarik`) |
+| `cermin_dilihat` | admin, `jid`, waktu terakhir dibuka (dasar hitungan belum dilihat) |
+| `cermin_lid` | LID ke nomor HP |
+
+Pesan disimpan dengan `ON CONFLICT DO NOTHING`, jadi pesan yang datang dua kali (webhook dan penarik) tetap satu baris. Edit memperbarui teks dan mengisi `diedit_at`. Pesan yang dihapus pengirim hanya ditandai `dihapus_at`, isinya tetap. Tidak dicatat: `status@broadcast`, saluran (`@newsletter`), reaksi, dan pesan protokol. Media hanya disimpan sebagai jenis, nama berkas, dan keterangan. `media.url` tidak pernah dibaca dan tidak ada unduhan.
+
+### Pengecualian nomor
+
+Nomor di env `CERMIN_KECUALI` (digit dipisah koma, bawaan nomor owner `6281938938800`) tidak dicatat: chat pribadinya dan pesannya di grup. Nomor dibandingkan lewat 10 digit terakhir, jadi `08...` dan `62...` dianggap sama. Pesan dari `@lid` diterjemahkan ke nomor lewat `GET /api/{sesi}/lids/{lid}` (hasilnya disimpan di `cermin_lid`). Kalau belum bisa diterjemahkan, pesannya tidak disimpan dan nanti diambil penarik setelah bisa.
+
+### Halaman
+
+| Metode | Jalur | Akses | Fungsi |
+|---|---|---|---|
+| GET | `/cermin` | Superadmin | Daftar chat: nama atau nomor, cuplikan, waktu WIB, lencana belum dilihat. Saringan `tipe` (pribadi, grup), `dari` (pelanggan, bot, admin), pencarian `q`, halaman `hal` |
+| GET | `/cermin/<jid>` | Superadmin | Isi chat bergaya gelembung, 200 pesan terakhir, `?n=` untuk memuat lebih lama |
+
+Semua jawaban memakai `Cache-Control: no-store`. Membuka chat memperbarui `cermin_dilihat` dan mencatat `buka_cermin` (nomor chat saja, tanpa isi) di log aktivitas. Tidak ada formulir kirim, balas, atau hapus.
+
+### Retensi dan privasi
+
+- Tiap hari sekitar pukul 03.00 WIB pesan yang lebih tua dari `CERMIN_HARI` (bawaan 180) dihapus, lalu chat yang kosong. `VACUUM` jalan tiap Minggu dini hari.
+- Log konsol hanya memuat jumlah dan pesan galat umum, tidak pernah isi pesan, nama, atau nomor. Tes memakai payload buatan.
+
+### Konfigurasi
+
+| Variabel | Bawaan | Fungsi |
+|---|---|---|
+| `CERMIN_HMAC` | Kosong | Kunci HMAC webhook. Kosong berarti listener mati |
+| `CERMIN_PORT` | `3020` | Port listener webhook |
+| `CERMIN_SESI` | `kantor` | Sesi WAHA yang dicermin |
+| `CERMIN_DB` | `/data/cermin.db` | Lokasi database cermin |
+| `CERMIN_HARI` | `180` | Lama simpan pesan |
+| `CERMIN_KECUALI` | `6281938938800` | Nomor yang tidak dicatat |
+| `WAHA_KANTOR_URL` | `http://waha-kantor:3000` | Alamat WAHA kantor untuk penarik |
+| `WAHA_KANTOR_KEY` | Kosong | API key WAHA kantor. Kosong berarti penarik tidak jalan |
+
+### Menarik riwayat
+
+Pemasangan pertama (semua chat di store WAHA, per halaman 100 pesan dengan jeda kecil, berhenti per chat saat pesan lebih tua dari batas retensi):
+
+```sh
+docker exec dprochatbot node tools/tarik-cermin.js --semua
+```
+
+Tanpa argumen, perintah itu menjalankan mode celah yang sama dengan jadwal otomatis. Keluarannya hanya jumlah chat dan pesan baru. Pesan yang sudah dihapus sebelum sempat tertangkap tidak bisa dipulihkan. Tes: `npm test`.
+
 ## Kondisi produksi
 
 | Item | Nilai |
