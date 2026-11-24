@@ -267,6 +267,7 @@ test("penarik celah: hanya GET dengan kunci, tarik chat yang lebih baru, idempot
       { id: PEL, name: "Budi Rekaan", lastMessage: { timestamp: baruTs } },
       { id: "628777777777@c.us", name: "Tidak Berubah", lastMessage: { timestamp: TS } },
       { id: "status@broadcast", lastMessage: { timestamp: baruTs } },
+      { id: "6281938938800@c.us", name: "Owner", lastMessage: { timestamp: baruTs } },
     ]));
     if (u.pathname.includes("/messages")) return new Response(JSON.stringify([pesan({ id: "3EB0D2", ts: baruTs, body: "celah terisi" }), pesan({ id: "3EB0D1", ts: TS, body: "sudah ada" })]));
     return new Response("[]");
@@ -278,6 +279,7 @@ test("penarik celah: hanya GET dengan kunci, tarik chat yang lebih baru, idempot
     assert.equal(h2.pesan, 0);
   } finally { globalThis.fetch = realFetch; }
   assert.ok(panggilan.every((c) => c.metode === "GET" && c.kunci === "kunci-waha-palsu" && !c.jalur.includes("/send")));
+  assert.ok(!panggilan.some((c) => c.jalur.includes("6281938938800")), "chat owner tidak boleh ditarik");
   const msg = panggilan.find((c) => c.jalur.includes("/messages"));
   assert.equal(msg.query.downloadMedia, "false");
   assert.equal(msg.query.limit, "100");

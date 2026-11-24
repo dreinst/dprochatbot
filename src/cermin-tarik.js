@@ -1,4 +1,4 @@
-import { cdb, simpanPesan, selesaikanJid, setNamaChat } from "./cermin.js";
+import { cdb, dikecualikan, simpanPesan, selesaikanJid, setNamaChat } from "./cermin.js";
 
 // Penarik riwayat dari API WAHA kantor, untuk mengisi celah saat pertama dipasang atau sesudah webhook mati.
 // Semua panggilan lewat wahaFetch yang hanya mengizinkan GET dan menolak jalur kirim, jadi modul ini tidak mungkin mengirim pesan.
@@ -30,6 +30,8 @@ export async function cariLid(lid) {
 }
 
 const abaikanId = (id) => !id || id === "status@broadcast" || String(id).endsWith("@broadcast") || String(id).endsWith("@newsletter");
+// Chat pribadi dengan nomor yang dikecualikan (CERMIN_KECUALI) tidak ditarik sama sekali, bukan hanya tidak disimpan.
+const chatDikecualikan = (s) => !!(s?.nomor && dikecualikan(s.nomor));
 
 // Tarik pesan satu chat, terbaru dulu, per halaman 100. Berhenti kalau halaman sudah memuat pesan lebih tua dari `batas` (detik).
 async function tarikChat(idChat, { batas, sejak, jeda }) {
@@ -61,8 +63,9 @@ export async function tarikSemua({ jeda = 300 } = {}) {
       for (const c of daftar) {
         const id = c.id?._serialized || c.id;
         if (abaikanId(id)) continue;
-        const baru = await tarikChat(id, { batas: batasRetensi(), jeda });
         const s = await selesaikanJid(id);
+        if (chatDikecualikan(s)) continue;
+        const baru = await tarikChat(id, { batas: batasRetensi(), jeda });
         if (s) setNamaChat(s.jid, c.name);
         hasil.chat++; hasil.pesan += baru;
         await tidur(jeda);
@@ -87,7 +90,7 @@ export async function tarikCelah({ jeda = 300 } = {}) {
         if (abaikanId(id)) continue;
         const terakhir = Number(c.lastMessage?.timestamp) || 0;
         const s = await selesaikanJid(id);
-        if (!s) continue;
+        if (!s || chatDikecualikan(s)) continue;
         const simpan = cdb.prepare("SELECT terakhir_at FROM cermin_chat WHERE jid = ?").get(s.jid)?.terakhir_at || 0;
         if (terakhir && terakhir <= simpan) continue;
         const baru = await tarikChat(id, { batas: batasRetensi(), sejak: simpan ? simpan - 600 : undefined, jeda });
