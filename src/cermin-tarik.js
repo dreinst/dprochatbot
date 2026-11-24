@@ -92,6 +92,7 @@ export async function tarikCelah({ jeda = 300 } = {}) {
         const s = await selesaikanJid(id);
         if (!s || chatDikecualikan(s)) continue;
         const simpan = cdb.prepare("SELECT terakhir_at FROM cermin_chat WHERE jid = ?").get(s.jid)?.terakhir_at || 0;
+        setNamaChat(s.jid, c.name); // nama grup dari webhook saja tidak ada, jadi selalu diperbarui dari overview
         if (terakhir && terakhir <= simpan) continue;
         const baru = await tarikChat(id, { batas: batasRetensi(), sejak: simpan ? simpan - 600 : undefined, jeda });
         setNamaChat(s.jid, c.name);
