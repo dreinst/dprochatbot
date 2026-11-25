@@ -68,7 +68,10 @@ export async function selesaikanJid(jid, alt = "") {
   let nomor = null;
   if (jid.endsWith("@c.us") || jid.endsWith("@s.whatsapp.net")) nomor = digit(jid.split("@")[0]);
   else if (jid.endsWith("@lid")) {
-    const dariAlt = /@(s\.whatsapp\.net|c\.us)$/.test(alt || "") ? digit(String(alt).split("@")[0]) : "";
+    // SenderAlt dari endpoint riwayat bisa membawa kode perangkat ("62xx:12@s.whatsapp.net"), jadi dibuang dulu
+    // supaya nomor tidak tergabung dengan kode itu (bug 25 Nov 2026: pesan owner di grup lolos dari pengecualian).
+    const a = bersihLid(alt || "");
+    const dariAlt = /@(s\.whatsapp\.net|c\.us)$/.test(a) ? digit(a.split("@")[0]) : "";
     nomor = dariAlt || (await nomorDariLid(jid));
   }
   return nomor ? { jid: `${nomor}@c.us`, nomor, grup: 0 } : null;

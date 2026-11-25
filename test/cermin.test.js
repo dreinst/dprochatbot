@@ -348,3 +348,13 @@ test("halaman: admin biasa 404, superadmin bisa membuka dan membuka chat dicatat
     assert.equal(post.status, 404);
   } finally { anak.kill(); }
 });
+
+test("kode perangkat di SenderAlt dan participant dibuang: nomor peserta benar dan owner tetap dikecualikan", async () => {
+  const GRUP = "120363000000000001@g.us";
+  const grupDari = (id, participant, alt) => pesan({ id, dari: GRUP, participant, extra: { _data: { Info: { PushName: "Rekaan", SenderAlt: alt }, Message: { conversation: "uji" } } } });
+  assert.equal(await C.simpanPesan(grupDari("3EB0P1", "999001@lid", "6281938938800:12@s.whatsapp.net"), "tarik"), "kecuali");
+  assert.equal(await C.simpanPesan(grupDari("3EB0P2", "6281938938800:3@s.whatsapp.net"), "tarik"), "kecuali");
+  assert.equal(await C.simpanPesan(grupDari("3EB0P3", "999002@lid", "628222222222:45@s.whatsapp.net"), "tarik"), "baru");
+  assert.equal(semua("SELECT peserta_nomor FROM cermin_pesan")[0].peserta_nomor, "628222222222");
+  assert.equal(semua("SELECT * FROM cermin_pesan WHERE peserta_nomor LIKE '%81938938800%'").length, 0);
+});
